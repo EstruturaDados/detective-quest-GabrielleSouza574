@@ -1,47 +1,201 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-// Desafio Detective Quest
-// Tema 4 - Árvores e Tabela Hash
-// Este código inicial serve como base para o desenvolvimento das estruturas de navegação, pistas e suspeitos.
-// Use as instruções de cada região para desenvolver o sistema completo com árvore binária, árvore de busca e tabela hash.
+#define TAM 50
 
-int main() {
+// =============================
+// Estruturas de Dados
+// =============================
 
-    // 🌱 Nível Novato: Mapa da Mansão com Árvore Binária
-    //
-    // - Crie uma struct Sala com nome, e dois ponteiros: esquerda e direita.
-    // - Use funções como criarSala(), conectarSalas() e explorarSalas().
-    // - A árvore pode ser fixa: Hall de Entrada, Biblioteca, Cozinha, Sótão etc.
-    // - O jogador deve poder explorar indo à esquerda (e) ou à direita (d).
-    // - Finalize a exploração com uma opção de saída (s).
-    // - Exiba o nome da sala a cada movimento.
-    // - Use recursão ou laços para caminhar pela árvore.
-    // - Nenhuma inserção dinâmica é necessária neste nível.
+// Nó da mansão (árvore binária de salas)
+typedef struct Sala {
+    char nome[TAM];
+    struct Sala *esquerda;
+    struct Sala *direita;
+    char pista[TAM]; // Pista encontrada nesta sala (ou vazio se não houver)
+} Sala;
 
-    // 🔍 Nível Aventureiro: Armazenamento de Pistas com Árvore de Busca
-    //
-    // - Crie uma struct Pista com campo texto (string).
-    // - Crie uma árvore binária de busca (BST) para inserir as pistas coletadas.
-    // - Ao visitar salas específicas, adicione pistas automaticamente com inserirBST().
-    // - Implemente uma função para exibir as pistas em ordem alfabética (emOrdem()).
-    // - Utilize alocação dinâmica e comparação de strings (strcmp) para organizar.
-    // - Não precisa remover ou balancear a árvore.
-    // - Use funções para modularizar: inserirPista(), listarPistas().
-    // - A árvore de pistas deve ser exibida quando o jogador quiser revisar evidências.
+// Nó da árvore de pistas (BST)
+typedef struct Pista {
+    char nome[TAM];
+    struct Pista *esquerda;
+    struct Pista *direita;
+} Pista;
 
-    // 🧠 Nível Mestre: Relacionamento de Pistas com Suspeitos via Hash
-    //
-    // - Crie uma struct Suspeito contendo nome e lista de pistas associadas.
-    // - Crie uma tabela hash (ex: array de ponteiros para listas encadeadas).
-    // - A chave pode ser o nome do suspeito ou derivada das pistas.
-    // - Implemente uma função inserirHash(pista, suspeito) para registrar relações.
-    // - Crie uma função para mostrar todos os suspeitos e suas respectivas pistas.
-    // - Adicione um contador para saber qual suspeito foi mais citado.
-    // - Exiba ao final o “suspeito mais provável” baseado nas pistas coletadas.
-    // - Para hashing simples, pode usar soma dos valores ASCII do nome ou primeira letra.
-    // - Em caso de colisão, use lista encadeada para tratar.
-    // - Modularize com funções como inicializarHash(), buscarSuspeito(), listarAssociacoes().
 
-    return 0;
+// =============================
+// Funções da Mansão
+// =============================
+
+/*
+ * criarSala()
+ * Cria dinamicamente uma sala com nome e (opcional) pista.
+ */
+Sala* criarSala(const char *nome, const char *pista) {
+    Sala *nova = (Sala*) malloc(sizeof(Sala));
+    if (!nova) { 
+        printf("Erro de memória!\n"); 
+        exit(1); 
+    }
+    strcpy(nova->nome, nome);
+    strcpy(nova->pista, pista);
+    nova->esquerda = NULL;
+    nova->direita = NULL;
+    return nova;
 }
 
+
+// =============================
+// Funções da BST de Pistas
+// =============================
+
+/*
+ * inserirPista()
+ * Insere uma nova pista na BST em ordem alfabética.
+ */
+Pista* inserirPista(Pista *raiz, const char *nome) {
+    if (raiz == NULL) {
+        Pista *nova = (Pista*) malloc(sizeof(Pista));
+        strcpy(nova->nome, nome);
+        nova->esquerda = nova->direita = NULL;
+        return nova;
+    }
+    if (strcmp(nome, raiz->nome) < 0)
+        raiz->esquerda = inserirPista(raiz->esquerda, nome);
+    else if (strcmp(nome, raiz->nome) > 0)
+        raiz->direita = inserirPista(raiz->direita, nome);
+    return raiz;
+}
+
+/*
+ * listarPistas()
+ * Percorre a BST em ordem e imprime as pistas em ordem alfabética.
+ */
+void listarPistas(Pista *raiz) {
+    if (raiz != NULL) {
+        listarPistas(raiz->esquerda);
+        printf(" - %s\n", raiz->nome);
+        listarPistas(raiz->direita);
+    }
+}
+
+/*
+ * liberarPistas()
+ * Libera a memória da árvore de pistas.
+ */
+void liberarPistas(Pista *raiz) {
+    if (raiz) {
+        liberarPistas(raiz->esquerda);
+        liberarPistas(raiz->direita);
+        free(raiz);
+    }
+}
+
+
+// =============================
+// Exploração da Mansão
+// =============================
+
+/*
+ * explorarSalas()
+ * Permite ao jogador navegar pela mansão e coleta pistas automaticamente.
+ */
+void explorarSalas(Sala *atual, Pista **raizPistas) {
+    char escolha;
+
+    while (atual != NULL) {
+        printf("\nVocê está em: %s\n", atual->nome);
+
+        // Se a sala contém pista, coleta automaticamente
+        if (strlen(atual->pista) > 0) {
+            printf("💡 Você encontrou uma pista: %s!\n", atual->pista);
+            *raizPistas = inserirPista(*raizPistas, atual->pista);
+        }
+
+        // Verifica se é nó-folha
+        if (atual->esquerda == NULL && atual->direita == NULL) {
+            printf("Fim da exploração! Você chegou a um beco sem saída.\n");
+            break;
+        }
+
+        printf("Escolha um caminho:\n");
+        if (atual->esquerda) printf("(e) Esquerda ");
+        if (atual->direita) printf("(d) Direita ");
+        printf("| (p) Ver pistas | (s) Sair\n-> ");
+        scanf(" %c", &escolha);
+
+        if ((escolha == 'e' || escolha == 'E') && atual->esquerda)
+            atual = atual->esquerda;
+        else if ((escolha == 'd' || escolha == 'D') && atual->direita)
+            atual = atual->direita;
+        else if (escolha == 'p' || escolha == 'P') {
+            printf("\n📜 Pistas coletadas até agora:\n");
+            if (*raizPistas)
+                listarPistas(*raizPistas);
+            else
+                printf("Nenhuma pista encontrada.\n");
+        }
+        else if (escolha == 's' || escolha == 'S') {
+            printf("Exploração encerrada!\n");
+            break;
+        }
+        else
+            printf("Opção inválida!\n");
+    }
+}
+
+/*
+ * liberarSalas()
+ * Libera memória da árvore da mansão.
+ */
+void liberarSalas(Sala *raiz) {
+    if (raiz != NULL) {
+        liberarSalas(raiz->esquerda);
+        liberarSalas(raiz->direita);
+        free(raiz);
+    }
+}
+
+
+// =============================
+// FUNÇÃO MAIN (AGORA AO FINAL)
+// =============================
+
+int main() {
+    // Criar salas (algumas com pistas)
+    Sala *hall        = criarSala("Hall de Entrada", "");
+    Sala *salaEstar   = criarSala("Sala de Estar", "Chave enferrujada");
+    Sala *cozinha     = criarSala("Cozinha", "");
+    Sala *biblioteca  = criarSala("Biblioteca", "Livro antigo");
+    Sala *jardim      = criarSala("Jardim", "Mapa misterioso");
+    Sala *quarto      = criarSala("Quarto Secreto", "Colar de esmeralda");
+
+    // Montar a árvore da mansão
+    hall->esquerda = salaEstar;
+    hall->direita  = cozinha;
+    salaEstar->esquerda = biblioteca;
+    salaEstar->direita  = jardim;
+    cozinha->direita = quarto;
+
+    Pista *pistas = NULL; // Raiz da BST de pistas
+
+    printf("=== Mansão Misteriosa - Nível Aventureiro ===\n");
+    printf("Explore os cômodos e encontre pistas!\n");
+
+    explorarSalas(hall, &pistas);
+
+    // Exibe as pistas ao final
+    printf("\n=== Pistas Coletadas ===\n");
+    if (pistas)
+        listarPistas(pistas);
+    else
+        printf("Nenhuma pista encontrada.\n");
+
+    // Libera memória
+    liberarSalas(hall);
+    liberarPistas(pistas);
+
+    printf("\nPrograma encerrado.\n");
+    return 0;
+}
